@@ -30,14 +30,14 @@ To try an unreleased build (e.g. this branch) in your own vault:
    ```sh
    npm run build
    ```
-   This produces `main.js`, `manifest.json`, and `styles.css` in the repo root.
-3. Copy those three files into `<YourVault>/.obsidian/plugins/update-time-on-edit/` (create the folder if it doesn't exist).
+   This produces `main.js`, `manifest.json`, and `styles.css` in the `dist/` folder.
+3. Copy those three files from `dist/` into `<YourVault>/.obsidian/plugins/update-time-on-edit/` (create the folder if it doesn't exist).
    - On macOS/Linux you can symlink instead, so rebuilds show up without re-copying:
      ```sh
      mkdir -p <YourVault>/.obsidian/plugins/update-time-on-edit
-     ln -sf "$(pwd)"/{main.js,manifest.json,styles.css} <YourVault>/.obsidian/plugins/update-time-on-edit/
+     ln -sf "$(pwd)"/dist/{main.js,manifest.json,styles.css} <YourVault>/.obsidian/plugins/update-time-on-edit/
      ```
 4. In Obsidian, go to **Settings → Community plugins**, make sure "Restricted mode" is off, then find "Update time on edit" and enable it.
-5. After making further changes, run `npm run dev` (watches and rebuilds `main.js` on save) and reload Obsidian (`Cmd/Ctrl+R` or close/reopen the vault) to pick up the new build.
+5. After making further changes, run `npm run dev` (watches and rebuilds into `dist/` on save) and reload Obsidian (`Cmd/Ctrl+R` or close/reopen the vault) to pick up the new build. Alternatively, set `OBSIDIAN_VAULT=<path-to-your-vault>` in a `.env` file in the repo root — with the plugin folder already created once — and `npm run dev` will auto-copy each rebuild straight into your vault.
 
 If you keep your vault in git, you can safely add `.obsidian/plugins/update-time-on-edit/cache.json` to your `.gitignore`. It only holds the plugin's internal file-hash cache (used by the experimental hash matcher) and is regenerated automatically; your actual settings stay in `data.json` in the same folder.
