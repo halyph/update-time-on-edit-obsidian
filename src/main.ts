@@ -10,10 +10,14 @@ import { isTFile } from './utils';
 import add from 'date-fns/add';
 import isAfter from 'date-fns/isAfter';
 import { sha256 } from 'js-sha256';
+import { FileHashCache } from './FileHashCache';
 
 export default class UpdateTimeOnSavePlugin extends Plugin {
   // @ts-expect-error the settings are hot loaded at init
   settings: UpdateTimeOnEditSettings;
+  fileHashMap: Record<string, string> = {};
+  // @ts-expect-error initialized in onload
+  fileHashCache: FileHashCache;
 
   parseDate(input: number | string): Date | undefined {
     if (typeof input === 'string') {
@@ -46,6 +50,12 @@ export default class UpdateTimeOnSavePlugin extends Plugin {
     this.log('loading plugin IN DEV');
 
     await this.loadSettings();
+
+    this.fileHashCache = new FileHashCache(
+      this.app.vault.adapter,
+      this.manifest.dir ?? `.obsidian/plugins/${this.manifest.id}`,
+    );
+    this.fileHashMap = await this.fileHashCache.load();
 
     this.setupOnEditHandler();
 
@@ -88,7 +98,7 @@ export default class UpdateTimeOnSavePlugin extends Plugin {
     }
 
     if (this.settings.enableExperimentalHash) {
-      const maybeHash = this.settings.fileHashMap[file.path];
+      const maybeHash = this.fileHashMap[file.path];
       if (maybeHash) {
         const sha = this.hashString(fileContent);
         if (sha === maybeHash) {
@@ -154,8 +164,8 @@ export default class UpdateTimeOnSavePlugin extends Plugin {
   async populateCacheForFile(file: TFile): Promise<void> {
     const fileContent = (await this.app.vault.read(file)).trim();
     const sha = this.hashString(fileContent);
-    this.settings.fileHashMap[file.path] = sha;
-    await this.saveSettings();
+    this.fileHashMap[file.path] = sha;
+    await this.saveFileHashCache();
   }
 
   async handleFileChange(
@@ -244,24 +254,24 @@ ${e.message}`;
 
     this.registerEvent(
       this.app.vault.on('rename', (file, oldPath) => {
-        const hash = this.settings.fileHashMap[oldPath];
+        const hash = this.fileHashMap[oldPath];
         if (!hash) {
           return;
         }
-        this.settings.fileHashMap[file.path] = hash;
-        delete this.settings.fileHashMap[oldPath];
-        this.saveSettings();
+        this.fileHashMap[file.path] = hash;
+        delete this.fileHashMap[oldPath];
+        this.saveFileHashCache();
       }),
     );
 
     this.registerEvent(
       this.app.vault.on('delete', async (file) => {
-        const sha = this.settings.fileHashMap[file.path];
+        const sha = this.fileHashMap[file.path];
         if (!sha) {
           return;
         }
-        delete this.settings.fileHashMap[file.path];
-        this.saveSettings();
+        delete this.fileHashMap[file.path];
+        this.saveFileHashCache();
       }),
     );
   }
@@ -278,10 +288,22 @@ ${e.message}`;
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const loadedData = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
+
+    // Cleanup: fileHashMap used to live in data.json; drop any leftovers
+    // from before it moved to its own gitignore-able cache file.
+    if (loadedData && 'fileHashMap' in loadedData) {
+      delete (this.settings as any).fileHashMap;
+      await this.saveSettings();
+    }
   }
 
   async saveSettings() {
     await this.saveData(this.settings);
+  }
+
+  async saveFileHashCache() {
+    await this.fileHashCache.save(this.fileHashMap);
   }
 }

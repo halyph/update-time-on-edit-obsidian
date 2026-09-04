@@ -18,7 +18,6 @@ export interface UpdateTimeOnEditSettings {
   ignoreCreatedFolder?: string[];
 
   enableExperimentalHash?: boolean;
-  fileHashMap: Record<string, string>;
 }
 
 export const DEFAULT_SETTINGS: UpdateTimeOnEditSettings = {
@@ -31,7 +30,6 @@ export const DEFAULT_SETTINGS: UpdateTimeOnEditSettings = {
   ignoreGlobalFolder: [],
   ignoreCreatedFolder: [],
   enableExperimentalHash: false,
-  fileHashMap: {},
 };
 
 export class UpdateTimeOnEditSettingsTab extends PluginSettingTab {
